@@ -1,0 +1,3 @@
+ALTER TABLE "notifications" ADD CONSTRAINT "notifications_status_check" CHECK ("notifications"."status" IN ('PENDING', 'SENT'));--> statement-breakpoint
+ALTER TABLE "notifications" ADD CONSTRAINT "notifications_sent_at_check" CHECK (("notifications"."status" = 'SENT') = ("notifications"."sent_at" IS NOT NULL));--> statement-breakpoint
+ALTER TABLE "recipients" ADD CONSTRAINT "recipients_role_check" CHECK ("recipients"."role" IN ('customer', 'organizer'));

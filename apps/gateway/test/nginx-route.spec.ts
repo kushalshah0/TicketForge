@@ -18,6 +18,23 @@ afterEach(() => {
 });
 
 describe('nginx route install rollback', () => {
+  it('scopes static security headers and preserves camera and QR support', () => {
+    const snippet = readFileSync('infra/nginx/ticketforge-web.conf', 'utf8');
+    const location = snippet.slice(
+      snippet.indexOf('location ^~ /ticketforge/'),
+    );
+    expect(location).toContain('server_tokens off;');
+    expect(location).toContain("frame-ancestors 'none'");
+    expect(location).toContain("img-src 'self' data:");
+    expect(location).toContain('camera=(self)');
+    expect(location).toContain('add_header X-Frame-Options DENY always;');
+    expect(location).toContain(
+      'add_header X-Content-Type-Options nosniff always;',
+    );
+    expect(location).not.toContain("'unsafe-inline'");
+    expect(snippet).not.toContain('Strict-Transport-Security');
+  });
+
   it('restores previous snippets and removes newly created snippets when validation fails', () => {
     const root = mkdtempSync(join(tmpdir(), 'ticketforge-nginx-test-'));
     directories.push(root);

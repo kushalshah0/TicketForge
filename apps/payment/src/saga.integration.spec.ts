@@ -88,7 +88,7 @@ integrationDescribe('cross-service payment saga integration', () => {
     previousQrSecret = process.env.QR_SECRET;
     process.env.QR_SECRET = 'ticketforge-saga-integration-test-secret';
     previousSmtpUrl = process.env.SMTP_URL;
-    process.env.SMTP_URL = 'smtp://127.0.0.1:1025';
+    process.env.SMTP_URL ??= 'smtp://127.0.0.1:1025';
     adminPool = new Pool({
       connectionString:
         process.env.TEST_POSTGRES_ADMIN_URL ??
@@ -288,9 +288,9 @@ integrationDescribe('cross-service payment saga integration', () => {
     expect(notification.body).toContain(eventTitle);
     expect(notification.body).toContain('Seat A1');
 
-    const mailpitResponse = await fetch(
-      'http://127.0.0.1:8025/api/v1/messages',
-    );
+    const mailpitApiUrl =
+      process.env.MAILPIT_API_URL ?? 'http://127.0.0.1:8025/api/v1';
+    const mailpitResponse = await fetch(`${mailpitApiUrl}/messages`);
     expect(mailpitResponse.ok).toBe(true);
     const mailpitMessages = (await mailpitResponse.json()) as {
       messages: Array<{ ID: string; Subject: string }>;
@@ -304,7 +304,7 @@ integrationDescribe('cross-service payment saga integration', () => {
         'Mailpit did not receive the end-to-end confirmation email',
       );
     const mailpitMessageResponse = await fetch(
-      `http://127.0.0.1:8025/api/v1/message/${delivered.ID}`,
+      `${mailpitApiUrl}/message/${delivered.ID}`,
     );
     expect(mailpitMessageResponse.ok).toBe(true);
     const deliveredMessage = (await mailpitMessageResponse.json()) as {

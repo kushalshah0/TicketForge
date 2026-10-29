@@ -122,6 +122,7 @@ integrationDescribe('NotificationEventsConsumer integration', () => {
       displayName: 'Test Recipient',
       role: 'customer',
     });
+
     await publish(registration);
 
     await waitFor(async () => {
@@ -165,6 +166,40 @@ integrationDescribe('NotificationEventsConsumer integration', () => {
       displayName: 'Test Recipient',
       role: 'customer',
     });
+  });
+
+  it('rejects invalid recipient roles and notification delivery states', async () => {
+    await expect(
+      databasePool.query(
+        `INSERT INTO recipients (user_id, email, display_name, role)
+         VALUES ($1, $2, $3, $4)`,
+        [randomUUID(), 'invalid-role@example.test', 'Invalid Role', 'admin'],
+      ),
+    ).rejects.toMatchObject({ code: '23514' });
+
+    const userId = randomUUID();
+    await database.insert(recipients).values({
+      userId,
+      email: 'invalid-status@example.test',
+      displayName: 'Invalid Status',
+      role: 'customer',
+    });
+
+    await expect(
+      databasePool.query(
+        `INSERT INTO notifications (user_id, type, source_event_id, status)
+         VALUES ($1, $2, $3, $4)`,
+        [userId, 'booking.cancelled', randomUUID(), 'FAILED'],
+      ),
+    ).rejects.toMatchObject({ code: '23514' });
+
+    await expect(
+      databasePool.query(
+        `INSERT INTO notifications (user_id, type, source_event_id, status)
+         VALUES ($1, $2, $3, $4)`,
+        [userId, 'booking.cancelled', randomUUID(), 'SENT'],
+      ),
+    ).rejects.toMatchObject({ code: '23514' });
   });
 
   it('sends one confirmation email with inline QR tickets', async () => {
@@ -216,9 +251,9 @@ integrationDescribe('NotificationEventsConsumer integration', () => {
       confirmation.data.tickets[0]?.qrToken,
     );
 
-    const messagesResponse = await fetch(
-      'http://127.0.0.1:8025/api/v1/messages',
-    );
+    const mailpitApiUrl =
+      process.env.MAILPIT_API_URL ?? 'http://127.0.0.1:8025/api/v1';
+    const messagesResponse = await fetch(`${mailpitApiUrl}/messages`);
     expect(messagesResponse.ok).toBe(true);
     const messages = (await messagesResponse.json()) as {
       messages: Array<{ ID: string; Subject: string }>;
@@ -231,7 +266,7 @@ integrationDescribe('NotificationEventsConsumer integration', () => {
       throw new Error('Mailpit did not receive the confirmation email');
 
     const messageResponse = await fetch(
-      `http://127.0.0.1:8025/api/v1/message/${delivered.ID}`,
+      `${mailpitApiUrl}/message/${delivered.ID}`,
     );
     expect(messageResponse.ok).toBe(true);
     const deliveredMessage = (await messageResponse.json()) as {

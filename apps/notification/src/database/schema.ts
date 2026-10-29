@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm';
 import {
   bigint,
+  check,
   index,
   jsonb,
   pgTable,
@@ -11,18 +12,27 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core';
 
-export const recipients = pgTable('recipients', {
-  userId: uuid('user_id').primaryKey(),
-  email: text('email').notNull().unique(),
-  displayName: text('display_name').notNull(),
-  role: text('role').notNull(),
-  createdAt: timestamp('created_at', { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-  updatedAt: timestamp('updated_at', { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-});
+export const recipients = pgTable(
+  'recipients',
+  {
+    userId: uuid('user_id').primaryKey(),
+    email: text('email').notNull().unique(),
+    displayName: text('display_name').notNull(),
+    role: text('role').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    check(
+      'recipients_role_check',
+      sql`${table.role} IN ('customer', 'organizer')`,
+    ),
+  ],
+);
 
 export const notifications = pgTable(
   'notifications',
@@ -42,6 +52,14 @@ export const notifications = pgTable(
     sentAt: timestamp('sent_at', { withTimezone: true }),
   },
   (table) => [
+    check(
+      'notifications_status_check',
+      sql`${table.status} IN ('PENDING', 'SENT')`,
+    ),
+    check(
+      'notifications_sent_at_check',
+      sql`(${table.status} = 'SENT') = (${table.sentAt} IS NOT NULL)`,
+    ),
     unique('notifications_dedupe_key').on(
       table.type,
       table.sourceEventId,

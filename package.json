@@ -21,7 +21,7 @@
     "preview:web": "vite preview --config web/vite.config.ts",
     "test": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --runInBand --passWithNoTests",
     "test:watch": "jest --watch",
-    "test:cov": "jest --coverage",
+    "test:cov": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --coverage --runInBand && node scripts/check-coverage.mjs",
     "test:debug": "node --inspect-brk ./node_modules/jest/bin/jest.js --runInBand",
     "test:e2e": "npm run build:gateway && node apps/gateway/test/app.e2e.mjs",
     "test:web:e2e": "playwright test --config web/playwright.config.mjs",
@@ -50,6 +50,8 @@
     "seed": "node scripts/seed-catalog.mjs",
     "seed:catalog": "node scripts/seed-catalog.mjs",
     "dlq:replay": "node scripts/dlq-replay.mjs",
+    "audit:integrity": "node scripts/audit.mjs",
+    "test:audit": "node --test scripts/audit.test.mjs",
     "keys:generate": "node scripts/generate-keys.mjs",
     "prepare": "husky install"
   },
@@ -82,14 +84,13 @@
     "react-router-dom": "^7.18.4",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
-    "zod": "^3.23.8"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@commitlint/cli": "^19.6.1",
     "@commitlint/config-conventional": "^19.6.1",
     "@eslint/js": "^9.17.0",
     "@nestjs/cli": "^12.0.0",
-    "@nestjs/mau": "^0.2.6",
     "@nestjs/schematics": "^12.0.0",
     "@nestjs/testing": "^12.0.1",
     "@playwright/test": "1.64.1",

@@ -370,10 +370,10 @@ export function createCatalogDatabase(pool: Pool): DrizzleDatabase {
   return createDrizzle(pool);
 }
 
-function parseInput<TOutput, TInput>(
-  schema: z.ZodType<TOutput, z.ZodTypeDef, TInput>,
+function parseInput<TSchema extends z.ZodType>(
+  schema: TSchema,
   input: unknown,
-): TOutput {
+): z.output<TSchema> {
   const parsed = schema.safeParse(input);
   if (!parsed.success) {
     throw new DomainError(

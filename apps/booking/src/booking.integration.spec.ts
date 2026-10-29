@@ -420,8 +420,14 @@ integrationDescribe('BookingService integration', () => {
 
     expect(expiredBooking.id).toBe(expiringBookingId);
     const [releasedSeat, replacementSeat] = await Promise.all([
-      database.select().from(seats).where(eq(seats.seatId, 'A2')),
-      database.select().from(seats).where(eq(seats.seatId, 'A1')),
+      database
+        .select()
+        .from(seats)
+        .where(and(eq(seats.eventId, eventId), eq(seats.seatId, 'A2'))),
+      database
+        .select()
+        .from(seats)
+        .where(and(eq(seats.eventId, eventId), eq(seats.seatId, 'A1'))),
     ]);
     expect(releasedSeat[0]).toMatchObject({
       status: 'AVAILABLE',

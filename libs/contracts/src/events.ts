@@ -206,7 +206,7 @@ export function makeEnvelope<TType extends EventType>(
     causationId: context.causationId ?? null,
     producer: eventProducers[type],
     data,
-  });
+  }) as EventEnvelope<TType>;
 }
 
 export function parseEvent(type: string, payload: unknown): EventEnvelope {

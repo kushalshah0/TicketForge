@@ -115,6 +115,27 @@ integrationDescribe('OutboxRelay integration', () => {
     expect(JSON.parse(received[0].content.toString())).toEqual(envelope);
   });
 
+  it('leaves a row unpublished and counts a broker publish failure', async () => {
+    const envelope = makeUserEvent('broker-failure@example.test');
+    await writeBusinessEvent(envelope);
+    const failuresBefore = (await relay.publishFailures.get()).values[0]?.value;
+    const publishSpy = jest
+      .spyOn(messaging, 'publish')
+      .mockRejectedValueOnce(new Error('simulated broker outage'));
+
+    await expect(relay.relayOnce()).rejects.toThrow('simulated broker outage');
+    publishSpy.mockRestore();
+    const result = await databasePool.query<{ published_at: Date | null }>(
+      'SELECT published_at FROM outbox WHERE message_id = $1',
+      [envelope.id],
+    );
+    const failures = await relay.publishFailures.get();
+
+    expect(result.rows[0]?.published_at).toBeNull();
+    expect(failures.values[0]?.value).toBe((failuresBefore ?? 0) + 1);
+    await expect(relay.relayOnce()).resolves.toBe(1);
+  });
+
   it('retries a publish after a simulated post-publish crash and processes the duplicate once', async () => {
     const envelope = makeUserEvent('crash@example.test');
     await writeBusinessEvent(envelope);
@@ -211,6 +232,16 @@ integrationDescribe('OutboxRelay integration', () => {
     const lag = await relay.lag.get();
     expect(lag.values.some((sample) => sample.labels.le === 30)).toBe(true);
     expect(lag.values.some((sample) => sample.labels.le === 60)).toBe(true);
+  });
+
+  it('starts only one polling timer and stops cleanly', async () => {
+    const lifecycleRelay = new OutboxRelay(database, messaging);
+
+    lifecycleRelay.onModuleInit();
+    lifecycleRelay.start();
+    await lifecycleRelay.onModuleDestroy();
+
+    await expect(lifecycleRelay.relayOnce()).resolves.toBe(0);
   });
 
   async function writeBusinessEvent(

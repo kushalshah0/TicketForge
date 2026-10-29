@@ -29,7 +29,10 @@ const config: Config = {
     'src/**/*.(t|j)s',
     'libs/**/*.(t|j)s',
     'apps/**/*.(t|j)s',
+    '!**/*.spec.ts',
+    '!**/*.e2e-spec.ts',
   ],
+  coverageReporters: ['clover', 'json', 'json-summary', 'lcov', 'text'],
   coverageDirectory: './coverage',
   testEnvironment: 'node',
 };

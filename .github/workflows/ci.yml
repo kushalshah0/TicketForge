@@ -91,7 +91,14 @@ jobs:
           test -z "$(git ls-files --others --exclude-standard -- 'apps/*/migrations')" || { echo 'Uncommitted generated migration'; exit 1; }
 
       - name: Unit and integration tests
-        run: npm test -- --runInBand --passWithNoTests
+        run: |
+          for attempt in 1 2 3 4 5; do
+            echo "Full coverage test run $attempt of 5"
+            npm run test:cov
+          done
+
+      - name: Test read-only integrity audit against scratch databases
+        run: npm run test:audit
 
       - name: Build all apps
         run: npm run build
