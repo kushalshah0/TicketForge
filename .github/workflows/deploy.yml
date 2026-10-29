@@ -1,0 +1,95 @@
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: [Images]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  deploy:
+    if: github.event.workflow_run.conclusion == 'success'
+    name: Deploy production
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment: production
+    env:
+      DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
+      DEPLOY_USER: ${{ vars.DEPLOY_USER }}
+      DEPLOY_ROOT: ${{ vars.TICKETFORGE_ROOT || '/opt/ticketforge-release-20261028-2' }}
+      DEPLOY_KNOWN_HOSTS: ${{ vars.DEPLOY_KNOWN_HOSTS }}
+      GHCR_READ_TOKEN: ${{ secrets.GHCR_READ_TOKEN }}
+      DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+      IMAGE_OWNER: ${{ github.repository_owner }}
+      TAG: ${{ github.event.workflow_run.head_sha }}
+
+    steps:
+      - name: Check out deployed revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Download web build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: web-dist
+          repository: ${{ github.repository }}
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+          path: web-dist
+
+      - name: Configure SSH
+        run: |
+          set -euo pipefail
+          test -n "$DEPLOY_HOST"
+          test -n "$DEPLOY_USER"
+          test -n "$DEPLOY_KNOWN_HOSTS"
+          test -n "$DEPLOY_SSH_KEY"
+          test -n "$GHCR_READ_TOKEN"
+          [[ "$DEPLOY_HOST" =~ ^[A-Za-z0-9.-]+$ ]]
+          [[ "$DEPLOY_USER" =~ ^[A-Za-z_][A-Za-z0-9_-]*$ ]]
+          [[ "$DEPLOY_ROOT" =~ ^/opt/ticketforge-release-[A-Za-z0-9_.-]+$ ]]
+          [[ "$TAG" =~ ^[0-9a-f]{40}$ ]]
+          install -d -m 0700 ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/id_ed25519
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 0600 ~/.ssh/id_ed25519 ~/.ssh/known_hosts
+          printf 'OWNER=%s\n' "${IMAGE_OWNER,,}" >> "$GITHUB_ENV"
+
+      - name: Stage deployment files
+        run: |
+          set -euo pipefail
+          target="$DEPLOY_USER@$DEPLOY_HOST"
+          ssh -i ~/.ssh/id_ed25519 -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes "$target" "sudo test -r '$DEPLOY_ROOT/.env' && sudo install -d -m 0755 '$DEPLOY_ROOT/infra/compose' '$DEPLOY_ROOT/infra/scripts'"
+          tar -C . -cf - \
+            infra/compose/docker-compose.prod.yml \
+            infra/scripts/deploy.sh \
+            infra/scripts/deploy-remote.sh \
+            infra/scripts/deploy-web.sh \
+            infra/scripts/smoke.sh |
+            ssh -i ~/.ssh/id_ed25519 -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes "$target" "sudo tar --no-same-owner -xf - -C '$DEPLOY_ROOT'"
+
+      - name: Deploy backend and smoke test
+        run: |
+          set -euo pipefail
+          target="$DEPLOY_USER@$DEPLOY_HOST"
+          printf '%s\n' "$GHCR_READ_TOKEN" |
+            ssh -i ~/.ssh/id_ed25519 -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes "$target" "sudo bash '$DEPLOY_ROOT/infra/scripts/deploy-remote.sh' '$DEPLOY_ROOT' 'ghcr.io/$OWNER' '$TAG'"
+
+      - name: Deploy web artifact
+        run: |
+          set -euo pipefail
+          target="$DEPLOY_USER@$DEPLOY_HOST"
+          remote_tmp="/tmp/ticketforge-web-$TAG"
+          ssh -i ~/.ssh/id_ed25519 -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes "$target" "mkdir -p '$remote_tmp'"
+          rsync -az --delete -e 'ssh -i ~/.ssh/id_ed25519 -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes' web-dist/ "$target:$remote_tmp/"
+          ssh -i ~/.ssh/id_ed25519 -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes "$target" "sudo bash '$DEPLOY_ROOT/infra/scripts/deploy-web.sh' '$remote_tmp' '$TAG' && rm -rf -- '$remote_tmp'"
+
+      - name: Verify public health
+        run: curl --fail --silent --show-error --retry 5 --retry-delay 2 https://kushal.runs-on.dev/api/health
+      - name: Verify public frontend
+        run: curl --fail --silent --show-error --retry 5 --retry-delay 2 https://kushal.runs-on.dev/ticketforge/

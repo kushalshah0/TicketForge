@@ -1,0 +1,126 @@
+{
+  "id": null,
+  "uid": "ticketforge-booking",
+  "title": "TicketForge Booking Funnel",
+  "tags": ["ticketforge", "booking"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-6h", "to": "now" },
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": { "type": "grafana", "uid": "-- Grafana --" },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "templating": { "list": [] },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Booking holds by result",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "ticketforge-prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "fieldConfig": { "defaults": { "unit": "ops" }, "overrides": [] },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (result) (rate(booking_holds_total{service=\"booking\"}[5m]))",
+          "legendFormat": "{{result}}"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Booking transitions",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "ticketforge-prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "fieldConfig": { "defaults": { "unit": "ops" }, "overrides": [] },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (from, to) (rate(booking_state_transitions_total{service=\"booking\"}[5m]))",
+          "legendFormat": "{{from}} to {{to}}"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Confirmed bookings",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "ticketforge-prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "fieldConfig": { "defaults": { "unit": "ops" }, "overrides": [] },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(booking_state_transitions_total{service=\"booking\",to=\"CONFIRMED\"}[5m])) or vector(0)",
+          "legendFormat": "confirmed"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Cancellations and expirations",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "ticketforge-prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "fieldConfig": { "defaults": { "unit": "ops" }, "overrides": [] },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (to) (rate(booking_state_transitions_total{service=\"booking\",to=~\"CANCELLED|EXPIRED\"}[5m]))",
+          "legendFormat": "{{to}}"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Committed refunds",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "ticketforge-prometheus" },
+      "gridPos": { "h": 5, "w": 24, "x": 0, "y": 16 },
+      "description": "Count of committed refund records in the payment database, not inferred booking transitions.",
+      "fieldConfig": {
+        "defaults": { "unit": "short", "min": 0 },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "payment_refunds{job=\"ticketforge\",service=\"payment\"}",
+          "legendFormat": "committed refunds"
+        }
+      ]
+    }
+  ]
+}

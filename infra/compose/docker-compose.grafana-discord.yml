@@ -1,0 +1,7 @@
+services:
+  grafana:
+    environment:
+      DISCORD_WEBHOOK_URL: ${DISCORD_WEBHOOK_URL:?Set the private Discord webhook URL}
+    volumes:
+      - ../grafana/provisioning/alerting/contact-points.yml:/etc/grafana/provisioning/alerting/contact-points.yml:ro
+      - ../grafana/provisioning/alerting/notification-policies.yml:/etc/grafana/provisioning/alerting/notification-policies.yml:ro

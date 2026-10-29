@@ -1,0 +1,204 @@
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: ticketforge-observability
+    folder: TicketForge
+    interval: 1m
+    rules:
+      - uid: ticketforge-outbox-lag
+        title: Outbox backlog age above 30 seconds
+        condition: B
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: ticketforge-prometheus
+            model:
+              datasource:
+                type: prometheus
+                uid: ticketforge-prometheus
+              editorMode: code
+              expr: outbox_oldest_unpublished_age_seconds{job="ticketforge"}
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: A
+              range: false
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: A
+              refId: B
+              conditions:
+                - type: query
+                  evaluator: {type: gt, params: [30]}
+                  operator: {type: and}
+                  reducer: {type: last}
+                  query: {params: [A]}
+        noDataState: Alerting
+        execErrState: Alerting
+        for: 2m
+        annotations:
+          summary: The oldest unpublished outbox message is over 30 seconds old.
+          description: Database-time backlog age has remained above 30 seconds for 2 minutes, including when publishing is stalled.
+        labels:
+          severity: warning
+      - uid: ticketforge-dlq-depth
+        title: Dead-letter queue has messages
+        condition: B
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: ticketforge-prometheus
+            model:
+              datasource:
+                type: prometheus
+                uid: ticketforge-prometheus
+              editorMode: code
+              expr: sum by (queue) (rabbitmq_detailed_queue_messages{job="rabbitmq",vhost="/",queue=~".*[.]dlq"})
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: A
+              range: false
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: A
+              refId: B
+              conditions:
+                - type: query
+                  evaluator: {type: gt, params: [0]}
+                  operator: {type: and}
+                  reducer: {type: last}
+                  query: {params: [A]}
+        noDataState: Alerting
+        execErrState: Alerting
+        for: 0s
+        annotations:
+          summary: A dead-letter queue contains messages.
+          description: One or more dead-letter queues have messages, including deliveries awaiting acknowledgement.
+        labels:
+          severity: warning
+      - uid: ticketforge-gateway-5xx
+        title: Gateway 5xx rate above 2 percent
+        condition: B
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: ticketforge-prometheus
+            model:
+              datasource:
+                type: prometheus
+                uid: ticketforge-prometheus
+              editorMode: code
+              expr: (sum(rate(http_request_duration_seconds_count{job="ticketforge",service="gateway",status_class="5xx"}[5m])) or (0 * sum(rate(http_request_duration_seconds_count{job="ticketforge",service="gateway"}[5m])))) / clamp_min(sum(rate(http_request_duration_seconds_count{job="ticketforge",service="gateway"}[5m])), 0.000001)
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: A
+              range: false
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: A
+              refId: B
+              conditions:
+                - type: query
+                  evaluator: {type: gt, params: [0.02]}
+                  operator: {type: and}
+                  reducer: {type: last}
+                  query: {params: [A]}
+        noDataState: Alerting
+        execErrState: Alerting
+        for: 5m
+        annotations:
+          summary: Gateway 5xx responses exceed 2 percent.
+          description: The gateway 5xx response rate has remained above 2 percent for 5 minutes.
+        labels:
+          severity: warning
+      - uid: ticketforge-target-down
+        title: TicketForge scrape target down
+        condition: B
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: ticketforge-prometheus
+            model:
+              datasource:
+                type: prometheus
+                uid: ticketforge-prometheus
+              editorMode: code
+              expr: up{job=~"ticketforge|rabbitmq"}
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: A
+              range: false
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: A
+              refId: B
+              conditions:
+                - type: query
+                  evaluator: {type: lt, params: [1]}
+                  operator: {type: and}
+                  reducer: {type: last}
+                  query: {params: [A]}
+        noDataState: Alerting
+        execErrState: Alerting
+        for: 2m
+        annotations:
+          summary: A TicketForge service or RabbitMQ scrape target is down.
+          description: Prometheus has failed to scrape a TicketForge or RabbitMQ target for 2 minutes.
+        labels:
+          severity: warning
+      - uid: ticketforge-container-memory
+        title: Container memory above 90 percent
+        condition: B
+        data:
+          - refId: A
+            relativeTimeRange: {from: 300, to: 0}
+            datasourceUid: ticketforge-prometheus
+            model:
+              datasource: {type: prometheus, uid: ticketforge-prometheus}
+              editorMode: code
+              expr: container_memory_usage_bytes{job="ticketforge"} / container_memory_limit_bytes{job="ticketforge"}
+              instant: true
+              range: false
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: A
+              refId: B
+              conditions:
+                - type: query
+                  evaluator: {type: gt, params: [0.9]}
+                  operator: {type: and}
+                  reducer: {type: last}
+                  query: {params: [A]}
+        noDataState: Alerting
+        execErrState: Alerting
+        for: 5m
+        annotations:
+          summary: An app container is using more than 90 percent of its memory limit.
+          description: Actual cgroup v2 memory usage has remained above 90 percent of the container limit for 5 minutes.
+        labels:
+          severity: warning

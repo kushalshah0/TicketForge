@@ -1,0 +1,125 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint-test-build:
+    name: Lint, tests, schema checks, and build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      CI: true
+      RUN_INTEGRATION_TESTS: 'true'
+      HOLD_TTL_SECONDS: '5'
+      TEST_POSTGRES_ADMIN_URL: postgresql://postgres:postgres@localhost:5432/postgres
+      AMQP_URL: amqp://ticketforge:ticketforge-ci@localhost:5672
+      AUTH_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ticketforge_auth
+      CATALOG_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ticketforge_catalog
+      BOOKING_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ticketforge_booking
+      PAYMENT_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ticketforge_payment
+      NOTIFICATION_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ticketforge_notification
+
+    services:
+      postgres:
+        image: postgres:16.4
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres -d postgres"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+      rabbitmq:
+        image: rabbitmq:3.13-management
+        env:
+          RABBITMQ_DEFAULT_USER: ticketforge
+          RABBITMQ_DEFAULT_PASS: ticketforge-ci
+        ports:
+          - 5672:5672
+        options: >-
+          --health-cmd="rabbitmq-diagnostics -q ping"
+          --health-interval=10s
+          --health-timeout=10s
+          --health-retries=10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.22.3
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Check migrations are committed
+        run: |
+          npx drizzle-kit check --config drizzle.config.ts
+          npx drizzle-kit check --config drizzle.catalog.config.ts
+          npx drizzle-kit check --config drizzle.booking.config.ts
+          npx drizzle-kit check --config drizzle.payment.config.ts
+          npx drizzle-kit check --config drizzle.notification.config.ts
+          for c in drizzle.config.ts drizzle.catalog.config.ts drizzle.booking.config.ts drizzle.payment.config.ts drizzle.notification.config.ts; do
+            npx drizzle-kit generate --config "$c"
+          done
+          git diff --exit-code -- 'apps/*/migrations' || { echo 'Schema changed without a committed migration'; exit 1; }
+          test -z "$(git ls-files --others --exclude-standard -- 'apps/*/migrations')" || { echo 'Uncommitted generated migration'; exit 1; }
+
+      - name: Unit and integration tests
+        run: npm test -- --runInBand --passWithNoTests
+
+      - name: Build all apps
+        run: npm run build
+
+      - name: Build Docker images
+        run: |
+          for app in gateway auth catalog booking payment notification; do
+            docker build --build-arg APP="$app" --target runtime -t "ticketforge-$app:ci" .
+          done
+          for app in auth catalog booking payment notification; do
+            docker build --build-arg APP="$app" --target migration -t "ticketforge-$app-migrate:ci" .
+          done
+
+      - name: Scan built images for fixable high and critical findings
+        run: |
+          for image in ticketforge-gateway:ci ticketforge-auth:ci ticketforge-catalog:ci ticketforge-booking:ci ticketforge-payment:ci ticketforge-notification:ci ticketforge-auth-migrate:ci ticketforge-catalog-migrate:ci ticketforge-booking-migrate:ci ticketforge-payment-migrate:ci ticketforge-notification-migrate:ci; do
+            docker run --rm \
+              -v /var/run/docker.sock:/var/run/docker.sock \
+              aquasec/trivy:0.58.2 image \
+              --severity HIGH,CRITICAL \
+              --ignore-unfixed \
+              --exit-code 1 \
+              "$image"
+          done
+
+      - name: Run gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          args: detect --no-banner --redact --source .

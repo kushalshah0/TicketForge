@@ -1,0 +1,155 @@
+{
+  "id": null,
+  "uid": "ticketforge-messaging",
+  "title": "TicketForge Messaging",
+  "tags": ["ticketforge", "messaging"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-1h", "to": "now" },
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": { "type": "grafana", "uid": "-- Grafana --" },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "templating": { "list": [] },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Messages ready by queue",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "ticketforge-prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "fieldConfig": {
+        "defaults": { "unit": "short", "min": 0 },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "rabbitmq_detailed_queue_messages_ready{job=\"rabbitmq\",vhost=\"/\"}",
+          "legendFormat": "{{queue}}"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Dead-letter messages ready",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "ticketforge-prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "fieldConfig": {
+        "defaults": { "unit": "short", "min": 0 },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "rabbitmq_detailed_queue_messages_ready{job=\"rabbitmq\",vhost=\"/\",queue=~\".*\\\\.dlq\"}",
+          "legendFormat": "{{queue}}"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Consumer throughput by result",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "ticketforge-prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "fieldConfig": { "defaults": { "unit": "ops" }, "overrides": [] },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (queue, result) (rate(mq_consumer_processed_total[5m]))",
+          "legendFormat": "{{queue}} {{result}}"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Retries and dead-letter publishes",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "ticketforge-prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "fieldConfig": { "defaults": { "unit": "ops" }, "overrides": [] },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(mq_retries_total[5m])) or vector(0)",
+          "legendFormat": "retries"
+        },
+        {
+          "refId": "B",
+          "expr": "sum(rate(dlq_messages_total[5m])) or vector(0)",
+          "legendFormat": "dead-letter publishes"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Unpublished outbox messages",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "ticketforge-prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "fieldConfig": {
+        "defaults": { "unit": "short", "min": 0 },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (service) (outbox_unpublished)",
+          "legendFormat": "{{service}}"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Oldest unpublished outbox message age",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "ticketforge-prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "outbox_oldest_unpublished_age_seconds{job=\"ticketforge\"}",
+          "legendFormat": "{{service}}"
+        }
+      ]
+    }
+  ]
+}

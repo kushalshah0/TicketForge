@@ -1,0 +1,36 @@
+services:
+  grafana:
+    image: grafana/grafana:11.2.0
+    container_name: ticketforge-grafana
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3300:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?Set a private Grafana admin password}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ../grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ../grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ../grafana/provisioning/alerting/rules.yml:/etc/grafana/provisioning/alerting/rules.yml:ro
+      - ../grafana/dashboards:/var/lib/grafana/dashboards/ticketforge:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/api/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    mem_limit: 256m
+    cpus: 0.5
+    networks:
+      - ticketforge
+
+networks:
+  ticketforge:
+    external: true
+    name: compose_default
+
+volumes:
+  grafana_data:

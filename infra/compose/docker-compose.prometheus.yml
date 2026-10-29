@@ -1,0 +1,25 @@
+services:
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    container_name: ticketforge-prometheus
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:9090:9090"
+    volumes:
+      - ./prometheus-vm.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=7d
+    mem_limit: 128m
+    cpus: 0.2
+    networks:
+      - ticketforge
+
+networks:
+  ticketforge:
+    external: true
+    name: compose_default
+
+volumes:
+  prometheus_data:

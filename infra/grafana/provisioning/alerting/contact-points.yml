@@ -1,0 +1,11 @@
+apiVersion: 1
+
+contactPoints:
+  - orgId: 1
+    name: TicketForge Discord
+    receivers:
+      - uid: ticketforge-discord
+        type: discord
+        disableResolveMessage: false
+        settings:
+          url: $DISCORD_WEBHOOK_URL

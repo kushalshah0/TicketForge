@@ -1,0 +1,39 @@
+{
+  "compilerOptions": {
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "resolvePackageJsonExports": true,
+    "esModuleInterop": true,
+    "isolatedModules": true,
+    "declaration": true,
+    "removeComments": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "allowSyntheticDefaultImports": true,
+    "target": "ES2023",
+    "types": ["node", "jest"],
+    "sourceMap": true,
+    "outDir": "./dist",
+    "rootDir": ".",
+    "incremental": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "strictPropertyInitialization": false,
+    "ignoreDeprecations": "6.0",
+    "baseUrl": ".",
+    "paths": {
+      "@tf/common": ["./libs/common/src"],
+      "@tf/common/*": ["./libs/common/src/*"],
+      "@tf/contracts": ["./libs/contracts/src"],
+      "@tf/contracts/*": ["./libs/contracts/src/*"],
+      "@tf/messaging": ["./libs/messaging/src"],
+      "@tf/messaging/*": ["./libs/messaging/src/*"],
+      "@tf/outbox": ["./libs/outbox/src"],
+      "@tf/outbox/*": ["./libs/outbox/src/*"],
+      "@tf/testing": ["./libs/testing/src"],
+      "@tf/testing/*": ["./libs/testing/src/*"]
+    }
+  },
+  "include": ["apps/**/*.ts", "libs/**/*.ts", "*.ts", "*.d.ts"],
+  "exclude": ["dist", "node_modules"]
+}
