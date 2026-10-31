@@ -30,6 +30,16 @@ jobs:
       NOTIFICATION_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ticketforge_notification
 
     services:
+      mailpit:
+        image: axllent/mailpit:v1.27.10
+        ports:
+          - 1025:1025
+          - 8025:8025
+        options: >-
+          --health-cmd="/mailpit readyz"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
       postgres:
         image: postgres:16.4
         env:

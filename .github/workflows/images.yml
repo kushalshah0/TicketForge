@@ -86,6 +86,7 @@ jobs:
           cache-to: type=gha,mode=max,scope=${{ matrix.app }}-${{ matrix.target }}
 
   web:
+    if: github.event.workflow_run.conclusion == 'success'
     name: Build web artifact
     runs-on: ubuntu-24.04
     timeout-minutes: 15
