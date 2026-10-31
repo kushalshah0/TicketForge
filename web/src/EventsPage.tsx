@@ -44,20 +44,23 @@ export function EventsPage() {
 
   return (
     <section>
-      <div className="mb-8">
+      <div className="mb-9 max-w-2xl">
         <p className="mb-3 text-sm font-semibold uppercase tracking-[0.2em] text-cyan-300">
-          Discover
+          The lineup
         </p>
-        <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-          Events
+        <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">
+          Find your next event.
         </h1>
+        <p className="mt-4 text-lg leading-8 text-slate-400">
+          Search by event or city and find the seats that make the night yours.
+        </p>
       </div>
 
       <form
-        className="mb-8 grid gap-4 rounded-xl border border-slate-800 bg-slate-900 p-5 sm:grid-cols-[1fr_1fr_auto]"
+        className="mb-8 grid gap-4 rounded-2xl border border-slate-800 bg-slate-900 p-5 sm:grid-cols-[1fr_1fr_auto] sm:items-end sm:p-6"
         onSubmit={submitSearch}
       >
-        <label className="text-sm text-slate-300">
+        <label className="block text-sm text-slate-300">
           Search events
           <input
             className="form-input"
@@ -67,7 +70,7 @@ export function EventsPage() {
             value={q}
           />
         </label>
-        <label className="text-sm text-slate-300">
+        <label className="block text-sm text-slate-300">
           City
           <input
             className="form-input"
@@ -76,7 +79,7 @@ export function EventsPage() {
             value={city}
           />
         </label>
-        <button className="primary-button self-end" type="submit">
+        <button className="primary-button w-full sm:w-auto" type="submit">
           Search
         </button>
       </form>
@@ -125,7 +128,7 @@ export function EventsPage() {
               />
             ))}
           </div>
-          <div className="mt-8 flex items-center justify-between gap-4">
+          <div className="mt-8 flex flex-col gap-4 border-t border-slate-800 pt-5 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm text-slate-400">
               Showing {filters.page * EVENTS_PAGE_SIZE + 1}–
               {Math.min(
@@ -215,7 +218,7 @@ export function EventDetailPage() {
       >
         ← Back to events
       </Link>
-      <div className="mt-6 rounded-2xl border border-slate-800 bg-slate-900 p-6 sm:p-10">
+      <div className="mt-6 rounded-3xl border border-slate-800 bg-slate-900 p-6 sm:p-10">
         <p className="text-sm font-medium text-cyan-300">{event.data.city}</p>
         <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
           {event.data.title}
@@ -237,7 +240,7 @@ export function EventDetailPage() {
             <ul className="mt-4 grid gap-3 sm:grid-cols-2">
               {event.data.tiers.map((tier) => (
                 <li
-                  className="rounded-lg border border-slate-800 px-4 py-3"
+                  className="rounded-xl border border-slate-800 px-4 py-4"
                   key={tier.id}
                 >
                   {tier.name}
@@ -353,8 +356,8 @@ function EventBooking({ event }: { event: CatalogEvent }) {
   );
 
   return (
-    <section className="mt-8 border-t border-slate-800 pt-6">
-      <div className="flex flex-wrap items-end justify-between gap-3">
+    <section className="mt-8 border-t border-slate-800 pt-7">
+      <div className="flex flex-col gap-4">
         <div>
           <h2 className="text-lg font-semibold">Choose seats</h2>
           <p className="mt-1 text-sm text-slate-400">
@@ -364,7 +367,7 @@ function EventBooking({ event }: { event: CatalogEvent }) {
         {availability.data && (
           <div
             aria-label="Seat availability legend"
-            className="flex flex-wrap gap-3 text-xs text-slate-300"
+            className="flex flex-wrap gap-x-4 gap-y-2 text-xs text-slate-300"
           >
             <span>
               <i className="mr-1 inline-block size-3 rounded bg-emerald-700" />
@@ -521,7 +524,7 @@ function SeatGrid({
         const tier = event.tiers.find((item) => item.id === section.tierId);
         return (
           <section
-            className="rounded-lg border border-slate-800 p-4"
+            className="rounded-2xl border border-slate-800 p-4 sm:p-5"
             key={section.id}
           >
             <div className="mb-3 flex flex-wrap justify-between gap-2 text-sm">
@@ -554,14 +557,16 @@ function SeatGrid({
                     <button
                       aria-label={`${seat.seatId}, ${statusLabel}`}
                       aria-pressed={selected}
-                      className={`min-w-10 rounded-md px-2 py-2 text-xs font-medium ${
+                      className={`min-h-11 min-w-11 rounded-xl px-2 py-2 text-xs font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-300 ${
                         selected
                           ? 'bg-cyan-500 text-slate-950'
                           : isMine
                             ? 'bg-blue-700 text-white'
                             : available
                               ? 'bg-emerald-800 text-white hover:bg-emerald-700'
-                              : 'cursor-not-allowed bg-slate-800 text-slate-500'
+                              : seat.status === 'HELD'
+                                ? 'cursor-not-allowed bg-amber-700 text-white'
+                                : 'cursor-not-allowed bg-slate-800 text-slate-300'
                       }`}
                       disabled={!available || disabled}
                       key={seat.seatId}
@@ -589,16 +594,20 @@ function EventCard({ event, search }: { event: CatalogEvent; search: string }) {
   const detailPath = `/events/${encodeURIComponent(event.id)}${search ? `?${search}` : ''}`;
   return (
     <Link
-      className="rounded-xl border border-slate-800 bg-slate-900 p-6 transition hover:border-cyan-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-300"
+      className="group rounded-2xl border border-slate-800 bg-slate-900 p-6 transition duration-200 hover:-translate-y-0.5 hover:border-cyan-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-300 sm:p-7"
       to={detailPath}
     >
-      <p className="text-sm font-medium text-cyan-300">{event.city}</p>
-      <h2 className="mt-2 text-xl font-semibold">{event.title}</h2>
-      <p className="mt-3 text-sm text-slate-400">
+      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-cyan-300">
+        {event.city}
+      </p>
+      <h2 className="mt-4 text-2xl font-semibold tracking-tight">
+        {event.title}
+      </h2>
+      <p className="mt-3 text-sm leading-6 text-slate-400">
         {event.venueName} · {formatEventDate(event.startsAt)}
       </p>
-      <span className="mt-5 inline-block text-sm text-cyan-300">
-        View event →
+      <span className="mt-7 inline-flex items-center gap-2 text-sm font-medium text-cyan-300 group-hover:text-cyan-200">
+        View event <span aria-hidden="true">→</span>
       </span>
     </Link>
   );

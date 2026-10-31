@@ -1,15 +1,203 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 @layer components {
   .form-input {
-    @apply mt-2 block w-full rounded-lg border border-slate-600 bg-slate-950 px-3 py-2 text-slate-100 focus:border-cyan-400 focus:outline-2 focus:outline-cyan-400;
+    @apply mt-2 block w-full rounded-xl border border-slate-600 bg-slate-950 px-4 py-3 text-slate-100 focus:border-cyan-400 focus:outline-2 focus:outline-cyan-400;
+  }
+
+  .account-type-select-wrap {
+    @apply relative mt-2 block;
+  }
+
+  .account-type-select {
+    @apply mt-0 appearance-none pr-11;
+    color-scheme: dark;
+  }
+
+  .account-type-select-chevron {
+    @apply pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400;
   }
 
   .primary-button {
-    @apply inline-block rounded-lg bg-cyan-300 px-4 py-2 font-medium text-slate-950 hover:bg-cyan-200 disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-block rounded-xl bg-cyan-300 px-5 py-3 text-center font-medium text-slate-950 transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:opacity-50;
   }
 
   .secondary-button {
-    @apply rounded-lg border border-slate-600 px-4 py-2 text-slate-100 hover:border-cyan-300 disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-block rounded-xl border border-slate-600 px-5 py-3 text-center text-slate-100 transition hover:border-cyan-300 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .theme-toggle {
+    @apply rounded-full border border-slate-700 px-4 py-2 text-xs font-medium text-slate-300 transition hover:border-cyan-300 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-300;
+  }
+
+  .home-feature {
+    background:
+      radial-gradient(
+        ellipse at 90% 0%,
+        rgb(34 211 238 / 14%),
+        transparent 48%
+      ),
+      linear-gradient(145deg, #111827, #0b1220 70%);
+  }
+}
+
+.app-shell[data-theme='light'] {
+  color-scheme: light;
+  background-color: #f7f8fa;
+  color: #172033;
+}
+
+.app-shell[data-theme='light'] .bg-slate-950 {
+  background-color: #f7f8fa;
+}
+
+.app-shell[data-theme='light'] .bg-slate-900 {
+  background-color: #fff;
+}
+
+.app-shell[data-theme='light'] .bg-slate-800 {
+  background-color: #e8edf2;
+}
+
+.app-shell[data-theme='light'] .border-slate-800,
+.app-shell[data-theme='light'] .border-slate-700 {
+  border-color: #d7dee7;
+}
+
+.app-shell[data-theme='light'] .text-slate-100,
+.app-shell[data-theme='light'] .text-slate-300 {
+  color: #263445;
+}
+
+.app-shell[data-theme='light'] .text-slate-400,
+.app-shell[data-theme='light'] .text-slate-500 {
+  color: #5c697a;
+}
+
+.app-shell[data-theme='light'] .text-cyan-300 {
+  color: #087e8b;
+}
+
+.app-shell[data-theme='light'] .text-cyan-200 {
+  color: #06616b;
+}
+
+.app-shell[data-theme='light'] .text-rose-200,
+.app-shell[data-theme='light'] .text-rose-300 {
+  color: #a7193f;
+}
+
+.app-shell[data-theme='light'] .text-amber-200 {
+  color: #8a4b08;
+}
+
+.app-shell[data-theme='light'] .text-emerald-300 {
+  color: #087443;
+}
+
+.app-shell[data-theme='light'] .bg-rose-950\/40,
+.app-shell[data-theme='light'] .bg-rose-950\/50 {
+  background-color: #fff1f2;
+}
+
+.app-shell[data-theme='light'] .bg-amber-950\/40 {
+  background-color: #fffbeb;
+}
+
+.app-shell[data-theme='light'] .bg-emerald-950\/40 {
+  background-color: #ecfdf5;
+}
+
+.app-shell[data-theme='light'] .border-rose-900 {
+  border-color: #fecdd3;
+}
+
+.app-shell[data-theme='light'] .border-amber-800 {
+  border-color: #fde68a;
+}
+
+.app-shell[data-theme='light'] .border-emerald-800 {
+  border-color: #a7f3d0;
+}
+
+.app-shell[data-theme='light'] .hover\:text-white:hover {
+  color: #172033;
+}
+
+.app-shell[data-theme='light'] .hover\:text-cyan-200:hover {
+  color: #06616b;
+}
+
+.app-shell[data-theme='light'] .hover\:border-cyan-700:hover {
+  border-color: #0e7490;
+}
+
+.app-shell[data-theme='light'] .home-feature {
+  background:
+    radial-gradient(ellipse at 90% 0%, rgb(8 126 139 / 11%), transparent 48%),
+    linear-gradient(145deg, #fff, #f0f4f7 70%);
+}
+
+.app-shell[data-theme='light'] .form-input {
+  border-color: #c6d0dc;
+  background-color: #fff;
+  color: #172033;
+}
+
+.app-shell[data-theme='light'] .account-type-select {
+  color-scheme: light;
+}
+
+.app-shell[data-theme='light'] .primary-button {
+  background-color: #a5f3fc;
+  color: #172033;
+}
+
+.app-shell[data-theme='light'] .primary-button:hover {
+  background-color: #67e8f9;
+}
+
+.app-shell[data-theme='light'] .secondary-button,
+.app-shell[data-theme='light'] .theme-toggle {
+  border-color: #c6d0dc;
+  color: #263445;
+}
+
+.app-shell[data-theme='light'] .secondary-button:hover,
+.app-shell[data-theme='light'] .theme-toggle:hover {
+  border-color: #087e8b;
+  color: #172033;
+}
+
+.app-shell[data-theme='light'] .secondary-button.text-rose-300 {
+  color: #a7193f;
+}
+
+.app-shell[data-theme='light'] .auth-title {
+  color: #172033;
+}
+
+.app-shell :where(a, button, input, select, textarea):focus-visible {
+  outline: 2px solid #22d3ee;
+  outline-offset: 3px;
+}
+
+.app-shell[data-theme='light']
+  :where(a, button, input, select, textarea):focus-visible {
+  outline-color: #0e7490;
+}
+
+.app-shell[data-theme='light'] .bg-amber-950\/50 {
+  background-color: #fffbeb;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-shell *,
+  .app-shell *::before,
+  .app-shell *::after {
+    animation-duration: 0.01ms;
+    animation-iteration-count: 1;
+    scroll-behavior: auto;
+    transition-duration: 0.01ms;
   }
 }

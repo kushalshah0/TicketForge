@@ -21,9 +21,14 @@ export function OrganizerEventsPage() {
   });
   return (
     <section>
-      <h1 className="text-3xl font-semibold">Organizer events</h1>
+      <p className="mb-3 text-sm font-semibold uppercase tracking-[0.18em] text-cyan-300">
+        Organizer workspace
+      </p>
+      <h1 className="text-4xl font-semibold tracking-tight">
+        Your events, in one place.
+      </h1>
       <Link
-        className="mt-4 inline-block text-cyan-300 underline"
+        className="secondary-button mt-5 rounded-full"
         to="/organizer/checkin"
       >
         Check in a ticket
@@ -45,7 +50,7 @@ export function OrganizerEventsPage() {
           </button>
         </div>
       ) : (
-        <ul className="mt-6 space-y-4">
+        <ul className="mt-8 space-y-4">
           {events.data.length === 0 && (
             <li>No events yet. Create your first event above.</li>
           )}
@@ -75,27 +80,33 @@ function OrganizerEventCard({ event }: { event: OrganizerEvent }) {
     },
   });
   return (
-    <li className="rounded-xl border border-slate-800 bg-slate-900 p-5">
+    <li className="rounded-2xl border border-slate-800 bg-slate-900 p-5 sm:p-6">
       <h2 className="text-xl font-semibold">{event.title}</h2>
       <p className="mt-2">
         {event.venueName}, {event.city} -{' '}
         {new Date(event.startsAt).toLocaleString()}
       </p>
-      <p className="mt-2 text-cyan-300">{event.status}</p>
-      <div className="mt-4 flex gap-4">
+      <p className="mt-3 inline-flex rounded-full border border-slate-700 px-3 py-1 text-xs font-medium text-cyan-300">
+        {event.status}
+      </p>
+      <div className="mt-5 flex flex-wrap items-center gap-3">
         {event.status === 'PUBLISHED' && (
           <Link className="underline" to={`/events/${event.id}`}>
             Public event
           </Link>
         )}
         {event.status === 'DRAFT' && (
-          <button onClick={() => setConfirmation('publish')} type="button">
+          <button
+            className="primary-button"
+            onClick={() => setConfirmation('publish')}
+            type="button"
+          >
             Publish
           </button>
         )}
         {event.status !== 'CANCELLED' && (
           <button
-            className="text-rose-300"
+            className="secondary-button border-rose-900 text-rose-300 hover:border-rose-700"
             onClick={() => setConfirmation('cancel')}
             type="button"
           >
@@ -104,14 +115,15 @@ function OrganizerEventCard({ event }: { event: OrganizerEvent }) {
         )}
       </div>
       {confirmation && (
-        <div className="mt-4 border border-amber-800 p-4">
+        <div className="mt-5 rounded-xl border border-amber-800 bg-amber-950/40 p-4">
           <p>
             {confirmation === 'publish'
               ? 'Publish this event? Its seat layout and prices cannot be edited after publishing.'
               : 'Cancel this event? Bookings will be cancelled, tickets voided, and refunds requested.'}
           </p>
-          <div className="mt-3 flex gap-4">
+          <div className="mt-4 flex flex-wrap gap-3">
             <button
+              className="primary-button"
               disabled={changeStatus.isPending}
               onClick={() => changeStatus.mutate(confirmation)}
               type="button"
@@ -119,6 +131,7 @@ function OrganizerEventCard({ event }: { event: OrganizerEvent }) {
               {changeStatus.isPending ? 'Saving...' : `Confirm ${confirmation}`}
             </button>
             <button
+              className="secondary-button"
               disabled={changeStatus.isPending}
               onClick={() => setConfirmation(undefined)}
               type="button"
@@ -224,10 +237,17 @@ function EventForm() {
 
   return (
     <form
-      className="mt-6 space-y-4 rounded-xl border border-slate-800 bg-slate-900 p-5"
+      className="mt-8 space-y-5 rounded-3xl border border-slate-800 bg-slate-900 p-5 sm:p-7"
       onSubmit={submit}
     >
-      <h2 className="text-xl font-semibold">Create event draft</h2>
+      <div>
+        <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-cyan-300">
+          Start here
+        </p>
+        <h2 className="text-2xl font-semibold tracking-tight">
+          Create event draft
+        </h2>
+      </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <label>
           Title
@@ -280,7 +300,7 @@ function EventForm() {
       </p>
       {sections.map((section, index) => (
         <fieldset
-          className="grid gap-3 rounded border border-slate-700 p-4 sm:grid-cols-2"
+          className="grid gap-3 rounded-2xl border border-slate-700 p-4 sm:grid-cols-2 sm:p-5"
           key={section.id}
         >
           <legend>Section {index + 1}</legend>
@@ -353,6 +373,7 @@ function EventForm() {
             />
           </label>
           <button
+            className="secondary-button"
             disabled={sections.length === 1}
             onClick={() =>
               setSections((current) =>
@@ -365,7 +386,7 @@ function EventForm() {
           </button>
         </fieldset>
       ))}
-      <div className="flex gap-4">
+      <div className="flex flex-wrap gap-3">
         <button
           className="secondary-button"
           onClick={() => setSections((current) => [...current, newSection()])}
@@ -403,10 +424,13 @@ export function CheckInPage() {
     checkIn.mutate(token);
   }
   return (
-    <section className="mx-auto max-w-xl">
-      <h1 className="text-3xl font-semibold">Ticket check-in</h1>
+    <section className="mx-auto max-w-xl rounded-3xl border border-slate-800 bg-slate-900 p-6 sm:p-8">
+      <p className="mb-3 text-sm font-semibold uppercase tracking-[0.18em] text-cyan-300">
+        At the door
+      </p>
+      <h1 className="text-4xl font-semibold tracking-tight">Ticket check-in</h1>
       <Link
-        className="mt-3 inline-block text-cyan-300 underline"
+        className="mt-4 inline-block text-sm text-cyan-300 underline"
         to="/organizer/events"
       >
         Back to organizer events
@@ -418,7 +442,7 @@ export function CheckInPage() {
           checkIn.mutate(value);
         }}
       />
-      <form className="mt-6 space-y-4" onSubmit={submit}>
+      <form className="mt-6 space-y-5" onSubmit={submit}>
         <label className="block">
           Ticket token
           <textarea
@@ -429,7 +453,7 @@ export function CheckInPage() {
           />
         </label>
         <button
-          className="primary-button"
+          className="primary-button w-full"
           disabled={checkIn.isPending || !token.trim()}
           type="submit"
         >

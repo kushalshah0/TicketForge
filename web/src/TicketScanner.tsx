@@ -110,7 +110,7 @@ export function TicketScanner({
       </button>
       {scanning && (
         <video
-          className="mt-4 w-full rounded"
+          className="mt-4 aspect-video w-full rounded-2xl border border-slate-800 bg-slate-950 object-cover"
           ref={video}
           muted
           playsInline

@@ -102,17 +102,25 @@ function Checkout({ bookingId }: { bookingId: string }) {
     !charge.isPending;
 
   return (
-    <section className="mx-auto max-w-2xl rounded-xl border border-slate-800 bg-slate-900 p-6 sm:p-8">
-      <h1 className="text-3xl font-semibold">Checkout</h1>
-      <p className="mt-4 text-lg">
-        {formatMinorCurrency(
-          currentBooking.totalMinor,
-          currentBooking.currency,
-        )}
+    <section className="mx-auto max-w-2xl rounded-3xl border border-slate-800 bg-slate-900 p-6 sm:p-9">
+      <p className="mb-3 text-sm font-semibold uppercase tracking-[0.18em] text-cyan-300">
+        Secure your seats
       </p>
-      <p className="mt-2 break-words text-sm text-slate-400">
-        Seats: {currentBooking.items.map((item) => item.seatId).join(', ')}
-      </p>
+      <h1 className="text-4xl font-semibold tracking-tight">Checkout</h1>
+      <div className="mt-6 rounded-2xl border border-slate-800 p-5 sm:p-6">
+        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
+          Order total
+        </p>
+        <p className="mt-2 text-3xl font-semibold tracking-tight">
+          {formatMinorCurrency(
+            currentBooking.totalMinor,
+            currentBooking.currency,
+          )}
+        </p>
+        <p className="mt-3 break-words text-sm text-slate-400">
+          Seats: {currentBooking.items.map((item) => item.seatId).join(', ')}
+        </p>
+      </div>
       {currentBooking.status === 'CONFIRMED' ? (
         <div className="mt-6 text-emerald-300" role="status">
           <p>Your booking is confirmed.</p>
@@ -136,7 +144,7 @@ function Checkout({ bookingId }: { bookingId: string }) {
       ) : (
         <>
           <p
-            className="mt-6 text-cyan-300"
+            className="mt-6 text-lg font-medium text-cyan-300"
             role="timer"
             aria-label="Time left to pay"
           >
@@ -189,7 +197,7 @@ function Checkout({ bookingId }: { bookingId: string }) {
             </label>
           )}
           <button
-            className="primary-button mt-5"
+            className="primary-button mt-5 w-full sm:w-auto"
             disabled={!canPay}
             onClick={() => {
               if (payment && canPay)

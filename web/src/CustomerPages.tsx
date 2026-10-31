@@ -26,8 +26,11 @@ export function BookingsPage() {
 
   return (
     <section>
-      <h1 className="text-3xl font-semibold">My bookings</h1>
-      <p className="mt-3 text-sm text-slate-400">
+      <p className="mb-3 text-sm font-semibold uppercase tracking-[0.18em] text-cyan-300">
+        Your account
+      </p>
+      <h1 className="text-4xl font-semibold tracking-tight">My bookings</h1>
+      <p className="mt-4 max-w-2xl text-sm leading-6 text-slate-400">
         Unpaid holds can be cancelled. Confirmed bookings can be cancelled more
         than 24 hours before the event.
       </p>
@@ -62,7 +65,7 @@ export function BookingsPage() {
               ))}
             </ul>
           )}
-          <div className="mt-6 flex items-center gap-4">
+          <div className="mt-6 flex flex-wrap items-center gap-3">
             <button
               className="secondary-button"
               disabled={page === 0}
@@ -110,7 +113,7 @@ function BookingCard({ booking }: { booking: CustomerBooking }) {
     },
   });
   return (
-    <li className="rounded-xl border border-slate-800 bg-slate-900 p-5">
+    <li className="rounded-2xl border border-slate-800 bg-slate-900 p-5 sm:p-6">
       <h2 className="break-all font-medium">Booking {booking.id}</h2>
       <p className="mt-2">
         {formatMinorCurrency(booking.totalMinor, booking.currency)}
@@ -141,7 +144,7 @@ function BookingCard({ booking }: { booking: CustomerBooking }) {
         )}
       </div>
       {confirmCancel && canRequestCancellation(booking.status) && (
-        <div className="mt-4 rounded border border-amber-800 p-4">
+        <div className="mt-4 rounded-xl border border-amber-800 p-4">
           <p>
             Cancel this booking? Its seats will be released and any issued
             tickets will become void.
@@ -188,7 +191,10 @@ export function TicketsPage() {
   });
   return (
     <section>
-      <h1 className="text-3xl font-semibold">My tickets</h1>
+      <p className="mb-3 text-sm font-semibold uppercase tracking-[0.18em] text-cyan-300">
+        Your account
+      </p>
+      <h1 className="text-4xl font-semibold tracking-tight">My tickets</h1>
       {tickets.isPending ? (
         <p className="mt-6" role="status">
           Loading tickets...
@@ -221,7 +227,7 @@ export function TicketsPage() {
 
 function TicketCard({ ticket }: { ticket: CustomerTicket }) {
   return (
-    <li className="rounded-xl border border-slate-800 bg-slate-900 p-5">
+    <li className="rounded-2xl border border-slate-800 bg-slate-900 p-5 sm:p-6">
       <h2 className="text-xl font-semibold">{ticket.eventTitle}</h2>
       <p className="mt-2">
         <time dateTime={ticket.startsAt}>
@@ -283,7 +289,7 @@ function TicketQr({ token }: { token: string }) {
     );
   return image ? (
     <img
-      className="mt-4 max-w-full rounded"
+      className="mt-4 max-w-full rounded-xl border border-slate-800 bg-white p-3"
       alt="Ticket QR code for organizer check-in"
       src={image}
       width={256}

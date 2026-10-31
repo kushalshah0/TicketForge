@@ -164,18 +164,34 @@ export function RegisterPage() {
         </label>
         <label className="block text-sm text-slate-300">
           Account type
-          <select
-            className="form-input"
-            onChange={(event) =>
-              setRole(
-                event.target.value === 'organizer' ? 'organizer' : 'customer',
-              )
-            }
-            value={role}
-          >
-            <option value="customer">Customer</option>
-            <option value="organizer">Organizer</option>
-          </select>
+          <span className="account-type-select-wrap">
+            <select
+              className="form-input account-type-select"
+              onChange={(event) =>
+                setRole(
+                  event.target.value === 'organizer' ? 'organizer' : 'customer',
+                )
+              }
+              value={role}
+            >
+              <option value="customer">Customer</option>
+              <option value="organizer">Organizer</option>
+            </select>
+            <svg
+              aria-hidden="true"
+              className="account-type-select-chevron"
+              fill="none"
+              viewBox="0 0 20 20"
+            >
+              <path
+                d="m5 7.5 5 5 5-5"
+                stroke="currentColor"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="1.75"
+              />
+            </svg>
+          </span>
         </label>
         {error && (
           <p className="text-sm text-rose-300" role="alert">
@@ -210,9 +226,14 @@ function AuthCard({
   children: ReactNode;
 }) {
   return (
-    <section className="mx-auto max-w-md rounded-2xl border border-slate-800 bg-slate-900 p-8 shadow-xl">
-      <h1 className="text-2xl font-semibold text-white">{title}</h1>
-      <p className="mb-8 mt-2 text-sm text-slate-400">{subtitle}</p>
+    <section className="mx-auto max-w-md rounded-3xl border border-slate-800 bg-slate-900 p-6 shadow-xl sm:p-8">
+      <p className="mb-4 text-xs font-semibold uppercase tracking-[0.18em] text-cyan-300">
+        TicketForge account
+      </p>
+      <h1 className="auth-title text-3xl font-semibold tracking-tight">
+        {title}
+      </h1>
+      <p className="mb-8 mt-3 text-sm leading-6 text-slate-400">{subtitle}</p>
       {children}
     </section>
   );
