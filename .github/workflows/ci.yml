@@ -100,6 +100,9 @@ jobs:
       - name: Test read-only integrity audit against scratch databases
         run: npm run test:audit
 
+      - name: Test runtime migrator against scratch databases
+        run: npm run test:migrations
+
       - name: Build all apps
         run: npm run build
 

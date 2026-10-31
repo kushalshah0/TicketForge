@@ -18,20 +18,41 @@ if [[ ! -r "$env_file" ]]; then
 fi
 
 previous_tag="$(cat "$last_good_file" 2>/dev/null || awk -F= '$1 == "TAG" { print $2; exit }' "$env_file")"
-previous_prefix="$(cat "$last_good_prefix_file" 2>/dev/null || awk -F= '$1 == "IMAGE_PREFIX" { print $2; exit }' "$env_file")"
-image_prefix="${IMAGE_PREFIX:-${previous_prefix:-ticketforge}}"
-previous_prefix="${previous_prefix:-$image_prefix}"
+stored_previous_prefix="$(cat "$last_good_prefix_file" 2>/dev/null || awk -F= '$1 == "IMAGE_PREFIX" { print $2; exit }' "$env_file")"
+image_prefix="${IMAGE_PREFIX:-${stored_previous_prefix:-ticketforge}}"
+previous_prefix="${PREVIOUS_IMAGE_PREFIX:-${stored_previous_prefix:-$image_prefix}}"
 if [[ "$previous_tag" == "$tag" ]]; then
   printf 'Use a new deployment tag; %s is already the last healthy tag.\n' "$tag" >&2
   exit 2
 fi
+skip_image_pull="${SKIP_IMAGE_PULL:-0}"
+if [[ "$skip_image_pull" != 0 && "$skip_image_pull" != 1 ]]; then
+  printf 'SKIP_IMAGE_PULL must be 0 or 1.\n' >&2
+  exit 2
+fi
 services=(auth catalog booking payment notification gateway)
+migration_services=(migrate-auth migrate-catalog migrate-booking migrate-payment migrate-notification)
 compose() {
   local active_tag="$1"
   local active_prefix="$2"
   shift
   shift
   TAG="$active_tag" IMAGE_PREFIX="$active_prefix" docker compose --env-file "$env_file" -f "$compose_file" "$@"
+}
+
+verify_local_images() {
+  local active_tag="$1"
+  local active_prefix="$2"
+  local include_migrations="${3:-0}"
+  local service
+  for service in "${services[@]}"; do
+    docker image inspect "${active_prefix}/ticketforge-${service}:${active_tag}" >/dev/null
+  done
+  if [[ "$include_migrations" == 1 ]]; then
+    for service in auth catalog booking payment notification; do
+      docker image inspect "${active_prefix}/ticketforge-${service}-migrate:${active_tag}" >/dev/null
+    done
+  fi
 }
 
 previous_services=()
@@ -51,13 +72,18 @@ rollback() {
       compose "$tag" "$image_prefix" stop "${new_services[@]}" || return 1
     fi
     if ((${#previous_services[@]})); then
-      compose "$previous_tag" "$previous_prefix" pull "${previous_services[@]}" || return 1
+      if [[ "$skip_image_pull" == 0 ]]; then
+        compose "$previous_tag" "$previous_prefix" pull "${previous_services[@]}" || return 1
+      fi
       compose "$previous_tag" "$previous_prefix" up --detach --no-build --no-deps --wait --wait-timeout 120 "${previous_services[@]}" || return 1
     fi
   fi
 }
 
-if ! compose "$tag" "$image_prefix" pull "${services[@]}" migrate-auth migrate-catalog migrate-booking migrate-payment migrate-notification; then
+if [[ "$skip_image_pull" == 1 ]]; then
+  verify_local_images "$tag" "$image_prefix" 1
+  verify_local_images "$previous_tag" "$previous_prefix"
+elif ! compose "$tag" "$image_prefix" pull "${services[@]}" "${migration_services[@]}"; then
   exit 1
 fi
 if ! compose "$tag" "$image_prefix" up --detach --no-build --wait --wait-timeout 180 "${services[@]}"; then

@@ -12,6 +12,10 @@ chmod +x "$root/release/infra/scripts/smoke.sh"
 cat > "$root/bin/docker" <<'MOCK'
 #!/usr/bin/env bash
 printf '%s/%s %s\n' "${TAG:-}" "${IMAGE_PREFIX:-}" "$*" >> "$DEPLOY_LOG"
+if [[ "$*" == *"image inspect"* && -n "${FAIL_IMAGE_INSPECT:-}" &&
+  "$*" == *"$FAIL_IMAGE_INSPECT"* ]]; then
+  exit 1
+fi
 if [[ "$*" == *"ps --status running --quiet"* ]]; then
   printf 'container-id\n'
 fi
@@ -32,6 +36,7 @@ MOCK
 chmod +x "$root/bin/"*
 export DEPLOY_LOG="$root/docker.log"
 tag=0123456789abcdef0123456789abcdef01234567
+local_tag=20261030-db-recovery
 
 if FAIL_SMOKE=1 PATH="$root/bin:$PATH" TICKETFORGE_ROOT="$root/release" \
   IMAGE_PREFIX=ghcr.io/example/ticketforge bash infra/scripts/deploy.sh "$tag"; then
@@ -49,4 +54,35 @@ PATH="$root/bin:$PATH" TICKETFORGE_ROOT="$root/release" \
 [[ "$(cat "$root/release/.last_good_tag")" == "$tag" ]]
 [[ "$(cat "$root/release/.last_good_image_prefix")" == ghcr.io/example/ticketforge ]]
 grep -q "^$tag/ghcr.io/example/ticketforge compose .* migrate-notification" "$DEPLOY_LOG"
+
+: > "$DEPLOY_LOG"
+if FAIL_IMAGE_INSPECT="ticketforge/ticketforge-notification-migrate:$local_tag" \
+  SKIP_IMAGE_PULL=1 PATH="$root/bin:$PATH" TICKETFORGE_ROOT="$root/release" \
+  IMAGE_PREFIX=ticketforge PREVIOUS_IMAGE_PREFIX=ticketforge \
+  bash infra/scripts/deploy.sh "$local_tag"; then
+  printf 'Expected missing local migration image to block deployment.\n' >&2
+  exit 1
+fi
+[[ "$(cat "$root/release/.last_good_tag")" == "$tag" ]]
+! grep -q ' compose .* up ' "$DEPLOY_LOG"
+
+: > "$DEPLOY_LOG"
+if FAIL_SMOKE=1 SKIP_IMAGE_PULL=1 PATH="$root/bin:$PATH" \
+  TICKETFORGE_ROOT="$root/release" IMAGE_PREFIX=ticketforge \
+  PREVIOUS_IMAGE_PREFIX=ticketforge \
+  bash infra/scripts/deploy.sh local-rollback; then
+  printf 'Expected local-image smoke failure to fail deployment.\n' >&2
+  exit 1
+fi
+[[ "$(cat "$root/release/.last_good_tag")" == "$tag" ]]
+! grep -q ' compose .* pull ' "$DEPLOY_LOG"
+grep -q '^0123456789abcdef0123456789abcdef01234567/ticketforge compose .* up ' "$DEPLOY_LOG"
+
+: > "$DEPLOY_LOG"
+SKIP_IMAGE_PULL=1 PATH="$root/bin:$PATH" TICKETFORGE_ROOT="$root/release" \
+  IMAGE_PREFIX=ticketforge PREVIOUS_IMAGE_PREFIX=ticketforge \
+  bash infra/scripts/deploy.sh "$local_tag"
+[[ "$(cat "$root/release/.last_good_tag")" == "$local_tag" ]]
+! grep -q ' compose .* pull ' "$DEPLOY_LOG"
+grep -q "image inspect ticketforge/ticketforge-notification-migrate:$local_tag" "$DEPLOY_LOG"
 printf 'Deployment rollback and successful state update checks passed.\n'

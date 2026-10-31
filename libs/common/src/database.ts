@@ -1,5 +1,8 @@
+import { Logger } from '@nestjs/common';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool, type PoolConfig } from 'pg';
+
+const logger = new Logger('PostgresPool');
 
 export type DrizzleDatabase = ReturnType<typeof drizzle>;
 export type DrizzleTransaction = Parameters<
@@ -7,7 +10,15 @@ export type DrizzleTransaction = Parameters<
 >[0];
 
 export function createPgPool(config: PoolConfig = {}): Pool {
-  return new Pool({ ...config, max: Math.min(config.max ?? 8, 8) });
+  const pool = new Pool({ ...config, max: Math.min(config.max ?? 8, 8) });
+  pool.on('error', (error) => {
+    const code =
+      'code' in error && typeof error.code === 'string'
+        ? error.code
+        : 'unknown';
+    logger.error(`Idle PostgreSQL client error (code=${code})`);
+  });
+  return pool;
 }
 
 export function createDrizzle(pool: Pool): DrizzleDatabase {

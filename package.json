@@ -52,6 +52,7 @@
     "dlq:replay": "node scripts/dlq-replay.mjs",
     "audit:integrity": "node scripts/audit.mjs",
     "test:audit": "node --test scripts/audit.test.mjs",
+    "test:migrations": "node --test scripts/migrate.test.mjs",
     "keys:generate": "node scripts/generate-keys.mjs",
     "prepare": "husky install"
   },

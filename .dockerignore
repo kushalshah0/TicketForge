@@ -14,5 +14,6 @@ coverage
 *.log
 docs
 infra
-scripts
+scripts/*
+!scripts/migrate.mjs
 web

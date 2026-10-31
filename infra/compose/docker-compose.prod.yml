@@ -77,7 +77,7 @@ services:
       target: migration
       args:
         APP: auth
-    command: ["npm", "run", "db:migrate:auth"]
+    command: ["node", "scripts/migrate.mjs", "auth"]
     environment:
       AUTH_DATABASE_URL: postgresql://auth_svc:${AUTH_DB_PASSWORD}@postgres:5432/auth
     depends_on:
@@ -95,7 +95,7 @@ services:
       target: migration
       args:
         APP: catalog
-    command: ["npm", "run", "db:migrate:catalog"]
+    command: ["node", "scripts/migrate.mjs", "catalog"]
     environment:
       CATALOG_DATABASE_URL: postgresql://catalog_svc:${CATALOG_DB_PASSWORD}@postgres:5432/catalog
     depends_on:
@@ -113,7 +113,7 @@ services:
       target: migration
       args:
         APP: booking
-    command: ["npm", "run", "db:migrate:booking"]
+    command: ["node", "scripts/migrate.mjs", "booking"]
     environment:
       BOOKING_DATABASE_URL: postgresql://booking_svc:${BOOKING_DB_PASSWORD}@postgres:5432/booking
     depends_on:
@@ -131,7 +131,7 @@ services:
       target: migration
       args:
         APP: payment
-    command: ["npm", "run", "db:migrate:payment"]
+    command: ["node", "scripts/migrate.mjs", "payment"]
     environment:
       PAYMENT_DATABASE_URL: postgresql://payment_svc:${PAYMENT_DB_PASSWORD}@postgres:5432/payment
     depends_on:
@@ -149,7 +149,7 @@ services:
       target: migration
       args:
         APP: notification
-    command: ["npm", "run", "db:migrate:notification"]
+    command: ["node", "scripts/migrate.mjs", "notification"]
     environment:
       NOTIFICATION_DATABASE_URL: postgresql://notification_svc:${NOTIFICATION_DB_PASSWORD}@postgres:5432/notification
     depends_on:
