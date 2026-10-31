@@ -6,6 +6,7 @@ on:
     branches: [main]
 
 permissions:
+  actions: read
   contents: read
 
 concurrency:
@@ -113,6 +114,13 @@ jobs:
       - name: Test runtime migrator against scratch databases
         run: npm run test:migrations
 
+      - name: Test selective deployment and release planning
+        run: |
+          node --test scripts/release/changed-components.test.mjs
+          bash -n infra/scripts/deploy.sh
+          bash -n infra/scripts/deploy-remote.sh
+          bash infra/scripts/deploy.spec.sh
+
       - name: Build all apps
         run: npm run build
 
@@ -143,3 +151,20 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         with:
           args: detect --no-banner --redact --source .
+
+      - name: Create production release plan
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_HEAD: ${{ github.sha }}
+        run: |
+          RELEASE_BASE="$(node scripts/release/last-successful-deploy.mjs)"
+          node scripts/release/changed-components.mjs "$RELEASE_BASE" "$RELEASE_HEAD" > release-plan.json
+
+      - name: Upload production release plan
+        if: github.event_name == 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-plan
+          path: release-plan.json
+          if-no-files-found: error

@@ -10,9 +10,80 @@ permissions:
   actions: read
   contents: read
 
+concurrency:
+  group: ticketforge-production-deploy
+  cancel-in-progress: false
+
 jobs:
+  release-plan:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    name: Read verified release plan
+    runs-on: ubuntu-24.04
+    outputs:
+      services: ${{ steps.plan.outputs.services }}
+      web: ${{ steps.plan.outputs.web }}
+      is_current: ${{ steps.plan.outputs.is_current }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-plan
+          repository: ${{ github.repository }}
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+          path: release-plan
+
+      - name: Validate release plan
+        id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+          UPSTREAM_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { appendFileSync, readFileSync } from 'node:fs';
+          const allowed = ['auth', 'booking', 'catalog', 'gateway', 'notification', 'payment'];
+          const plan = JSON.parse(readFileSync('release-plan/release-plan.json', 'utf8'));
+          if (!Array.isArray(plan.services) || typeof plan.web !== 'boolean' ||
+              plan.services.some((service) => !allowed.includes(service)) ||
+              new Set(plan.services).size !== plan.services.length ||
+              plan.source_event !== 'push' ||
+              plan.source_repository !== process.env.GITHUB_REPOSITORY ||
+              plan.source_sha !== process.env.UPSTREAM_SHA ||
+              !/^[0-9a-f]{40}$/.test(plan.source_sha)) {
+            throw new Error('Invalid production release plan');
+          }
+          const response = await fetch(
+            `${process.env.GITHUB_API_URL}/repos/${process.env.GITHUB_REPOSITORY}/commits/main`,
+            {
+              headers: {
+                Accept: 'application/vnd.github+json',
+                Authorization: `Bearer ${process.env.GH_TOKEN}`,
+                'X-GitHub-Api-Version': '2022-11-28',
+              },
+            },
+          );
+          if (!response.ok) {
+            throw new Error(`Could not verify the current main commit: HTTP ${response.status}`);
+          }
+          const current = await response.json();
+          if (!/^[0-9a-f]{40}$/.test(current.sha)) {
+            throw new Error('Current main returned an invalid commit SHA');
+          }
+          appendFileSync(process.env.GITHUB_OUTPUT, [
+            `services=${plan.services.join(' ')}`,
+            `web=${plan.web}`,
+            `is_current=${plan.source_sha === current.sha}`,
+            '',
+          ].join('\n'));
+          NODE
+
   deploy:
-    if: github.event.workflow_run.conclusion == 'success'
+    needs: release-plan
+    if: >-
+      needs.release-plan.outputs.is_current == 'true' &&
+      (needs.release-plan.outputs.services != '' || needs.release-plan.outputs.web == 'true')
     name: Deploy production
     runs-on: ubuntu-24.04
     timeout-minutes: 30
@@ -25,6 +96,7 @@ jobs:
       GHCR_READ_TOKEN: ${{ secrets.GHCR_READ_TOKEN }}
       DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
       IMAGE_OWNER: ${{ github.repository_owner }}
+      DEPLOY_SERVICES: ${{ needs.release-plan.outputs.services }}
       TAG: ${{ github.event.workflow_run.head_sha }}
 
     steps:
@@ -34,6 +106,7 @@ jobs:
           ref: ${{ github.event.workflow_run.head_sha }}
 
       - name: Download web build artifact
+        if: needs.release-plan.outputs.web == 'true'
         uses: actions/download-artifact@v4
         with:
           name: web-dist
@@ -42,6 +115,24 @@ jobs:
           github-token: ${{ github.token }}
           path: web-dist
 
+      - name: Recheck release freshness after approval
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          current_sha="$(node --input-type=module <<'NODE'
+          import { getCurrentMainSha } from './scripts/release/last-successful-deploy.mjs';
+          process.stdout.write(await getCurrentMainSha({
+            apiUrl: process.env.GITHUB_API_URL,
+            repository: process.env.GITHUB_REPOSITORY,
+            token: process.env.GH_TOKEN,
+          }));
+          NODE
+          )"
+          if [[ "$current_sha" != "$TAG" ]]; then
+            echo "::error::Release $TAG was superseded by main at $current_sha; refusing stale deployment."
+            exit 1
+          fi
+
       - name: Configure SSH
         run: |
           set -euo pipefail
@@ -49,7 +140,9 @@ jobs:
           test -n "$DEPLOY_USER"
           test -n "$DEPLOY_KNOWN_HOSTS"
           test -n "$DEPLOY_SSH_KEY"
-          test -n "$GHCR_READ_TOKEN"
+          if [[ -n "$DEPLOY_SERVICES" ]]; then
+            test -n "$GHCR_READ_TOKEN"
+          fi
           [[ "$DEPLOY_HOST" =~ ^[A-Za-z0-9.-]+$ ]]
           [[ "$DEPLOY_USER" =~ ^[A-Za-z_][A-Za-z0-9_-]*$ ]]
           [[ "$DEPLOY_ROOT" =~ ^/opt/ticketforge-release-[A-Za-z0-9_.-]+$ ]]
@@ -61,6 +154,7 @@ jobs:
           printf 'OWNER=%s\n' "${IMAGE_OWNER,,}" >> "$GITHUB_ENV"
 
       - name: Stage deployment files
+        if: needs.release-plan.outputs.services != '' || needs.release-plan.outputs.web == 'true'
         run: |
           set -euo pipefail
           target="$DEPLOY_USER@$DEPLOY_HOST"
@@ -74,13 +168,20 @@ jobs:
             ssh -i ~/.ssh/id_ed25519 -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes "$target" "sudo tar --no-same-owner -xf - -C '$DEPLOY_ROOT'"
 
       - name: Deploy backend and smoke test
+        if: needs.release-plan.outputs.services != ''
         run: |
           set -euo pipefail
           target="$DEPLOY_USER@$DEPLOY_HOST"
+          command="sudo bash '$DEPLOY_ROOT/infra/scripts/deploy-remote.sh' '$DEPLOY_ROOT' 'ghcr.io/$OWNER' '$TAG'"
+          read -r -a selected_services <<< "$DEPLOY_SERVICES"
+          for service in "${selected_services[@]}"; do
+            command+=" '$service'"
+          done
           printf '%s\n' "$GHCR_READ_TOKEN" |
-            ssh -i ~/.ssh/id_ed25519 -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes "$target" "sudo bash '$DEPLOY_ROOT/infra/scripts/deploy-remote.sh' '$DEPLOY_ROOT' 'ghcr.io/$OWNER' '$TAG'"
+            ssh -i ~/.ssh/id_ed25519 -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes "$target" "$command"
 
       - name: Deploy web artifact
+        if: needs.release-plan.outputs.web == 'true'
         run: |
           set -euo pipefail
           target="$DEPLOY_USER@$DEPLOY_HOST"
@@ -90,6 +191,8 @@ jobs:
           ssh -i ~/.ssh/id_ed25519 -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes "$target" "sudo bash '$DEPLOY_ROOT/infra/scripts/deploy-web.sh' '$remote_tmp' '$TAG' && rm -rf -- '$remote_tmp'"
 
       - name: Verify public health
+        if: needs.release-plan.outputs.services != ''
         run: curl --fail --silent --show-error --retry 5 --retry-delay 2 https://kushal.runs-on.dev/api/health
       - name: Verify public frontend
+        if: needs.release-plan.outputs.web == 'true'
         run: curl --fail --silent --show-error --retry 5 --retry-delay 2 https://kushal.runs-on.dev/ticketforge/

@@ -4,6 +4,7 @@ set -euo pipefail
 root="${1:-}"
 image_prefix="${2:-}"
 tag="${3:-}"
+shift 3 || true
 
 if [[ ! "$root" =~ ^/opt/ticketforge-release-[A-Za-z0-9_.-]+$ ||
   ! "$image_prefix" =~ ^ghcr\.io/[a-z0-9][a-z0-9-]*$ ||
@@ -37,4 +38,4 @@ if [[ ! -r "$root/.env" ]]; then
 fi
 
 DOCKER_CONFIG="$docker_config" TICKETFORGE_ROOT="$root" IMAGE_PREFIX="$image_prefix" \
-  bash "$root/infra/scripts/deploy.sh" "$tag"
+  bash "$root/infra/scripts/deploy.sh" "$tag" "$@"

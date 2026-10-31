@@ -12,48 +12,77 @@ permissions:
   packages: write
 
 jobs:
+  release-plan:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    name: Select changed release targets
+    runs-on: ubuntu-24.04
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+      has_backend: ${{ steps.plan.outputs.has_backend }}
+      web: ${{ steps.plan.outputs.web }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-plan
+          repository: ${{ github.repository }}
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+          path: release-plan
+
+      - name: Validate release plan and create image matrix
+        id: plan
+        env:
+          UPSTREAM_EVENT: ${{ github.event.workflow_run.event }}
+          UPSTREAM_REPOSITORY: ${{ github.event.workflow_run.head_repository.full_name }}
+          UPSTREAM_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { appendFileSync, readFileSync, writeFileSync } from 'node:fs';
+          const allowed = ['auth', 'booking', 'catalog', 'gateway', 'notification', 'payment'];
+          const plan = JSON.parse(readFileSync('release-plan/release-plan.json', 'utf8'));
+          if (!Array.isArray(plan.services) || typeof plan.web !== 'boolean' ||
+              plan.services.some((service) => !allowed.includes(service)) ||
+              new Set(plan.services).size !== plan.services.length) {
+            throw new Error('Invalid production release plan');
+          }
+          const matrix = plan.services.flatMap((app) => [
+            { app, target: 'runtime', suffix: '' },
+            ...(app === 'gateway' ? [] : [{ app, target: 'migration', suffix: '-migrate' }]),
+          ]);
+          writeFileSync('release-plan/release-plan.json', JSON.stringify({
+            ...plan,
+            source_event: process.env.UPSTREAM_EVENT,
+            source_repository: process.env.UPSTREAM_REPOSITORY,
+            source_sha: process.env.UPSTREAM_SHA,
+          }, null, 2) + '\n');
+          appendFileSync(process.env.GITHUB_OUTPUT, [
+            `matrix=${JSON.stringify({ include: matrix })}`,
+            `has_backend=${matrix.length > 0}`,
+            `web=${plan.web}`,
+            '',
+          ].join('\n'));
+          NODE
+
+      - name: Forward release plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-plan
+          path: release-plan/release-plan.json
+          if-no-files-found: error
+
   images:
-    if: github.event.workflow_run.conclusion == 'success'
+    needs: release-plan
+    if: needs.release-plan.outputs.has_backend == 'true'
     name: Build and push ${{ matrix.app }}${{ matrix.suffix }}
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - app: gateway
-            target: runtime
-            suffix: ''
-          - app: auth
-            target: runtime
-            suffix: ''
-          - app: catalog
-            target: runtime
-            suffix: ''
-          - app: booking
-            target: runtime
-            suffix: ''
-          - app: payment
-            target: runtime
-            suffix: ''
-          - app: notification
-            target: runtime
-            suffix: ''
-          - app: auth
-            target: migration
-            suffix: -migrate
-          - app: catalog
-            target: migration
-            suffix: -migrate
-          - app: booking
-            target: migration
-            suffix: -migrate
-          - app: payment
-            target: migration
-            suffix: -migrate
-          - app: notification
-            target: migration
-            suffix: -migrate
+      matrix: ${{ fromJSON(needs.release-plan.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -86,7 +115,8 @@ jobs:
           cache-to: type=gha,mode=max,scope=${{ matrix.app }}-${{ matrix.target }}
 
   web:
-    if: github.event.workflow_run.conclusion == 'success'
+    needs: release-plan
+    if: needs.release-plan.outputs.web == 'true'
     name: Build web artifact
     runs-on: ubuntu-24.04
     timeout-minutes: 15
