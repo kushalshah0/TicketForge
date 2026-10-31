@@ -62,9 +62,11 @@ describe('production deployment rollout', () => {
   it('includes all six apps and new database migrations before marking a tag healthy', () => {
     const { result, commands, root } = runDeployment(false);
     expect(result.status).toBe(0);
-    expect(commands).toContain('migrate-payment migrate-notification');
     expect(commands).toContain(
-      'auth catalog booking payment notification gateway',
+      'pull auth migrate-auth catalog migrate-catalog booking migrate-booking payment migrate-payment notification migrate-notification gateway',
+    );
+    expect(commands).toContain(
+      'up --detach --no-build --wait --wait-timeout 180 auth catalog booking payment notification gateway',
     );
     expect(readFileSync(join(root, '.last_good_tag'), 'utf8')).toBe('next\n');
   });
@@ -72,11 +74,13 @@ describe('production deployment rollout', () => {
   it('stops newly introduced services and restores only the previously running apps on failure', () => {
     const { result, commands } = runDeployment(true);
     expect(result.status).toBe(1);
-    expect(commands).toContain('stop payment notification');
     expect(commands).toContain('previous compose --env-file');
-    expect(commands).toContain(
-      '--no-deps --wait --wait-timeout 120 auth catalog booking gateway',
-    );
+    for (const service of ['auth', 'catalog', 'booking', 'gateway'])
+      expect(commands).toContain(
+        `--no-deps --wait --wait-timeout 120 ${service}\n`,
+      );
+    for (const service of ['payment', 'notification'])
+      expect(commands).toContain(`stop ${service}\n`);
   });
 
   it('rejects reuse of the last healthy tag before changing the deployment', () => {
